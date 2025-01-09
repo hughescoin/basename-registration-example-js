@@ -1,0 +1,17 @@
+{
+  "name": "discord-captaincrypto",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "register": "node register-basename.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "viem": "^2.22.5"
+  }
+}
