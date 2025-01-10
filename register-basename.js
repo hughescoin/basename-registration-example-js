@@ -16,11 +16,11 @@ import {
 import { walletClient, publicClient, account } from './utils/clients.js';
 
 const baseNameRegex = /\.basetest\.eth$/;
+const baseName = process.env.BASE_NAME.toLowerCase();
+const unformattedBaseName = process.env.BASE_NAME;
 const duration = '31557600';
 
 async function getTransactionCosts() {
-  const baseName = process.env.BASE_NAME;
-
   // Get the register price for a basename
   const price = await publicClient.readContract({
     address: BaseNamesRegistrarControllerAddress,
@@ -98,7 +98,7 @@ async function registerBasename(baseName, addressId) {
       value: parseEther(value),
     });
     console.log(
-      `Successfully registered Basename ${baseName} for wallet: `,
+      `Successfully registered Basename ${unformattedBaseName} for wallet: `,
       account.address.toString()
     );
     console.log(`Transaction hash: ${contractInvocation}`);
@@ -110,7 +110,6 @@ async function registerBasename(baseName, addressId) {
 async function main() {
   try {
     console.log(`Registering basename: ${process.env.BASE_NAME}`);
-    const baseName = process.env.BASE_NAME;
     const addressId = getAddress(account.address.toString());
     console.log(`Address ID: ${addressId}`);
     await registerBasename(baseName, addressId);
