@@ -1,35 +1,65 @@
 import 'dotenv/config';
 import {
-  http,
-  createWalletClient,
   encodeFunctionData,
   namehash,
   getAddress,
   parseEther,
+  formatEther,
 } from 'viem';
 import { normalize } from 'viem/ens';
-import { baseSepolia } from 'viem/chains';
 import {
   l2ResolverABI,
   registrarABI,
   L2ResolverAddress,
   BaseNamesRegistrarControllerAddress,
 } from './utils/basename.js';
-import { privateKeyToAccount } from 'viem/accounts';
+import { walletClient, publicClient, account } from './utils/clients.js';
 
 const baseNameRegex = /\.basetest\.eth$/;
+const duration = '31557600';
 
-//Create an account from a private key
-const privateKey = process.env.PRIVATE_KEY;
-const account = privateKeyToAccount(privateKey);
-console.log(`Account: ${account.address.toString()}`);
+async function getTransactionCosts() {
+  const baseName = process.env.BASE_NAME;
 
-//Create a wallet client
-const walletClient = createWalletClient({
-  account,
-  chain: baseSepolia,
-  transport: http(),
-});
+  // Get the register price for a basename
+  const price = await publicClient.readContract({
+    address: BaseNamesRegistrarControllerAddress,
+    abi: registrarABI,
+    functionName: 'registerPrice',
+    args: [namehash(normalize(baseName)), duration],
+  });
+
+  // Multiply the price by 10 to get the correct decimal places
+  const adjustedPrice = BigInt(price) * BigInt(10);
+
+  // Get the current gas price
+  const gasPrice = await publicClient.getGasPrice();
+
+  // Estimate the gas needed for the transaction
+  const registerArgs = createRegisterContractMethodArgs(
+    baseName,
+    account.address
+  );
+  console.log('Estimating gas ...');
+  const gasEstimate = await publicClient.estimateContractGas({
+    address: BaseNamesRegistrarControllerAddress,
+    abi: registrarABI,
+    functionName: 'register',
+    args: [registerArgs.request],
+    value: parseEther('0.01'), //When estimating gas, we can pass a higher `value` to get a more accurate estimate
+    account: account.address,
+  });
+
+  const gasCost = gasEstimate * gasPrice;
+  const totalCost = gasCost + adjustedPrice;
+  console.log(
+    `Total cost in ETH to register ${baseName} for ${duration} year(s) is ${formatEther(
+      totalCost
+    ).toString()}`
+  );
+
+  return formatEther(totalCost).toString();
+}
 
 function createRegisterContractMethodArgs(baseName, addressId) {
   const addressData = encodeFunctionData({
@@ -47,26 +77,25 @@ function createRegisterContractMethodArgs(baseName, addressId) {
     request: [
       baseName.replace('.basetest.eth', ''),
       addressId,
-      '31557600',
+      duration,
       L2ResolverAddress,
       [addressData, nameData],
       true,
     ],
   };
-  console.log(`Register contract method arguments constructed: `, registerArgs);
-
   return registerArgs;
 }
 
 async function registerBasename(baseName, addressId) {
   try {
     const registerArgs = createRegisterContractMethodArgs(baseName, addressId);
+    const value = await getTransactionCosts();
     const contractInvocation = await walletClient.writeContract({
       address: BaseNamesRegistrarControllerAddress,
       abi: registrarABI,
       functionName: 'register',
       args: [registerArgs.request],
-      value: parseEther('0.01'),
+      value: parseEther(value),
     });
     console.log(
       `Successfully registered Basename ${baseName} for wallet: `,
