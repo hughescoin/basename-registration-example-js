@@ -15,7 +15,6 @@ import {
 } from './utils/basename.js';
 import { walletClient, publicClient, account } from './utils/clients.js';
 
-const baseNameRegex = /\.basetest\.eth$/;
 const baseName = process.env.BASE_NAME.toLowerCase();
 const unformattedBaseName = process.env.BASE_NAME;
 const duration = '31557600';
